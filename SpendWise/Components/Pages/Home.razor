@@ -64,6 +64,20 @@ else
             <p style="font-size: 2rem; font-weight: bold;">@ClearedDebt</p>
         </div>
     </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 0 auto; max-width: 1000px;">
+        <!-- Other existing cards -->
+
+        <div style="background: #fff3cd; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
+            <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Total Transactions</h2>
+            <p style="font-size: 2rem; font-weight: bold;">@TotalTransactionsCount</p>
+        </div>
+
+        <div style="background: #cce5ff; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
+            <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Net Total Transactions</h2>
+            <p style="font-size: 2rem; font-weight: bold;">@NetTotalTransactions</p>
+        </div>
+    </div>
+
 
     <div style="margin-top: 20px;">
         <h3 style="color: #6c757d; text-align: center; font-size: 1.8rem;">Transaction Insights</h3>
@@ -200,11 +214,13 @@ else
         await FetchDashboardData();
     }
 
+    private int TotalTransactionsCount = 0;
+    private decimal NetTotalTransactions = 0;
+
     private async Task FetchDashboardData()
     {
         try
         {
-            // Fetch the UserId from localStorage
             UserId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "userId");
 
             if (!string.IsNullOrEmpty(UserId))
@@ -223,8 +239,13 @@ else
 
                 TotalCashInflow = inflows.Sum(t => t.Amount);
                 TotalCashOutflow = outflows.Sum(t => t.Amount);
-                TotalBalance = TotalCashInflow - TotalCashOutflow;
                 TotalDebt = debts.Sum(t => t.Amount);
+
+                // New Calculations
+                TotalTransactionsCount = transactions.Count();
+                NetTotalTransactions = TotalCashInflow + TotalDebt - TotalCashOutflow;
+
+                TotalBalance = TotalCashInflow - TotalCashOutflow;
                 RemainingDebt = debts.Where(t => !t.IsCleared).Sum(t => t.Amount);
                 ClearedDebt = TotalDebt - RemainingDebt;
                 PendingDebts = debts.Where(t => !t.IsCleared).ToList();
@@ -247,6 +268,7 @@ else
             Console.WriteLine($"Error fetching dashboard data: {ex.Message}");
         }
     }
+
 
     private async Task ApplyDateRangeFilter()
     {
