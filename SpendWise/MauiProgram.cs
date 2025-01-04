@@ -1,5 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 
+using SpendWise.Components.Services;
+
+
 namespace SpendWise
 {
     public static class MauiProgram
@@ -13,11 +16,14 @@ namespace SpendWise
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
-
+            builder.Services.AddScoped<UserService>();
             builder.Services.AddMauiBlazorWebView();
+           ;
+           
+
 
 #if DEBUG
-    		builder.Services.AddBlazorWebViewDeveloperTools();
+            builder.Services.AddBlazorWebViewDeveloperTools();
     		builder.Logging.AddDebug();
 #endif
 

@@ -1,0 +1,158 @@
+﻿@page "/cash-inflow"
+@using SpendWise.Components.Models
+@using SpendWise.Components.Services
+@inject UserService UserService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h1 style="text-align: center; font-size: 2.5rem; margin-bottom: 20px; color: #343a40;">Cash Inflow</h1>
+
+<div style="display: flex; justify-content: center; align-items: center; margin-bottom: 40px;">
+    <div style="background: #f8f9fa; padding: 30px; border-radius: 10px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); max-width: 500px; width: 100%;">
+        <EditForm Model="@newCashInflow" OnValidSubmit="AddCashInflow">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="amount" style="font-weight: bold;">Amount:</label>
+                <InputNumber id="amount" class="form-control" @bind-Value="newCashInflow.Amount" style="padding: 10px; font-size: 1rem;" />
+                <ValidationMessage For="@(() => newCashInflow.Amount)" />
+            </div>
+
+            <div class="form-group">
+                <label for="tags" style="font-weight: bold;">Tags:</label>
+                <InputText id="tags" class="form-control" @bind-Value="newCashInflow.Label" style="padding: 10px; font-size: 1rem;" />
+                <ValidationMessage For="@(() => newCashInflow.Label)" />
+            </div>
+
+            <div class="form-group">
+                <label for="remarks" style="font-weight: bold;">Remarks:</label>
+                <InputText id="remarks" class="form-control" @bind-Value="newCashInflow.Notes" style="padding: 10px; font-size: 1rem;" />
+                <ValidationMessage For="@(() => newCashInflow.Notes)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; font-size: 1.1rem; margin-top: 20px;">Add Inflow</button>
+        </EditForm>
+
+        @if (SuccessMessage != null)
+        {
+            <div class="alert alert-success" style="margin-top: 20px;">@SuccessMessage</div>
+        }
+
+        @if (ErrorMessage != null)
+        {
+            <div class="alert alert-danger" style="margin-top: 20px;">@ErrorMessage</div>
+        }
+    </div>
+</div>
+
+<h2 style="text-align: center; font-size: 2rem; margin-bottom: 20px; color: #343a40;">Cash Inflows</h2>
+
+<div style="display: flex; justify-content: center; align-items: center;">
+    @if (cashInflows != null && cashInflows.Any())
+    {
+        <table class="table table-hover table-bordered" style="width: 90%; background: #ffffff; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); border-radius: 10px;">
+            <thead style="background: #f0fff0; color: #343a40; text-align: center;">
+                <tr>
+                    <th>SN</th>
+                    <th>Amount</th>
+                    <th>Tags</th>
+                    <th>Remarks</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody style="text-align: center; background: #f5f5f5; color: #343a40;">
+                @for (var serialNumber = 1; serialNumber <= cashInflows.Count; serialNumber++)
+                {
+                    var inflow = cashInflows[serialNumber - 1];
+                    <tr style="background: #f5f5f5;">
+                        <td>@serialNumber</td>
+                        <td>@inflow.Amount</td>
+                        <td>@inflow.Label</td>
+                        <td>@inflow.Notes</td>
+                        <td>@inflow.TransactionDateTime.ToLocalTime()</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p style="font-size: 1.2rem; text-align: center; color: #dc3545;">No cash inflows found.</p>
+    }
+</div>
+
+
+
+@code {
+    private AppModel.Transaction newCashInflow = new AppModel.Transaction
+        {
+            TransactionType = AppModel.TransactionType.Credit,
+            TransactionDateTime = DateTime.UtcNow
+        };
+    private string? SuccessMessage;
+    private string? ErrorMessage;
+    private string UserId = string.Empty;
+    private List<AppModel.Transaction> cashInflows = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            UserId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "userId");
+
+            if (string.IsNullOrEmpty(UserId))
+            {
+                ErrorMessage = "User not authenticated. Please log in.";
+                NavigationManager.NavigateTo("/");
+                return;
+            }
+
+            cashInflows = await UserService.GetCashInflowsAsync(UserId);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"An error occurred: {ex.Message}";
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private async Task AddCashInflow()
+    {
+        try
+        {
+            var success = await UserService.SaveCashInFlowDataAsync(
+                UserId,
+                UserId,
+                newCashInflow.Label,
+                newCashInflow.Notes,
+                newCashInflow.Amount,
+                AppModel.TransactionType.Credit
+            );
+
+            if (success)
+            {
+                newCashInflow = new AppModel.Transaction
+                    {
+                        TransactionType = AppModel.TransactionType.Credit,
+                        TransactionDateTime = DateTime.UtcNow
+                    };
+                SuccessMessage = "Transaction successful!";
+                ErrorMessage = null;
+
+                cashInflows = await UserService.GetCashInflowsAsync(UserId);
+            }
+            else
+            {
+                SuccessMessage = null;
+                ErrorMessage = "Failed to save the transaction.";
+            }
+        }
+        catch (Exception ex)
+        {
+            SuccessMessage = null;
+            ErrorMessage = $"An error occurred: {ex.Message}";
+            Console.WriteLine($"Transaction error: {ex.Message}");
+        }
+    }
+}

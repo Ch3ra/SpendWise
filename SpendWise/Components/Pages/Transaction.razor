@@ -1,0 +1,159 @@
+﻿@page "/transaction"
+@using SpendWise.Components.Models
+@using SpendWise.Components.Services
+@inject UserService UserService
+@inject IJSRuntime JSRuntime
+
+<h1 style="text-align: center; font-size: 2.5rem; margin-bottom: 20px;">Transactions</h1>
+
+<!-- Filters Section -->
+<div style="display: flex; justify-content: center; margin-bottom: 20px;">
+    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap; max-width: 100%;">
+        <div>
+            <label for="transaction-type" style="display: block; font-weight: bold;">Transaction Type</label>
+            <select id="transaction-type" class="form-select" @bind="SelectedTransactionType" style="width: 200px;">
+                <option value="">All</option>
+                <option value="Credit">Credit</option>
+                <option value="Debit">Debit</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="transaction-tag" style="display: block; font-weight: bold;">Tag</label>
+            <input id="transaction-tag" type="text" class="form-control" @bind="SearchTag" placeholder="Enter Labels" style="width: 200px;" />
+        </div>
+
+        <div>
+            <label for="start-date" style="display: block; font-weight: bold;">Start Date</label>
+            <input id="start-date" type="date" class="form-control" @bind="StartDate" style="width: 200px;" />
+        </div>
+
+        <div>
+            <label for="end-date" style="display: block; font-weight: bold;">End Date</label>
+            <input id="end-date" type="date" class="form-control" @bind="EndDate" style="width: 200px;" />
+        </div>
+
+        <div>
+            <label for="sort-order" style="display: block; font-weight: bold;">Sort by Date</label>
+            <select id="sort-order" class="form-select" @bind="SelectedSortOrder" style="width: 200px;">
+                <option value="Descending">Newest First</option>
+                <option value="Ascending">Oldest First</option>
+            </select>
+        </div>
+
+        <div>
+            <button class="btn btn-primary" @onclick="HandleSearch" style="margin-top: 24px;">Search</button>
+        </div>
+    </div>
+</div>
+
+<!-- Transactions Table -->
+<div>
+    <table class="table table-striped table-bordered" style="width: 90%; margin: auto;">
+        <thead class="table-light">
+            <tr>
+                <th>AMOUNT</th>
+                <th>Tags</th>
+                <th>NOTES</th>
+                <th>TRANSACTION TYPE</th>
+                <th>TRANSACTION DATE</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (FilteredTransactions.Any())
+            {
+                @foreach (var transaction in FilteredTransactions)
+                {
+                    <tr>
+                        <td>@transaction.Amount</td>
+                        <td>@transaction.Label</td>
+                        <td>@transaction.Notes</td>
+                        <td>@transaction.TransactionType</td>
+                        <td>@transaction.TransactionDateTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="5" style="text-align: center;">No Transactions Found</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<AppModel.Transaction> Transactions = new();
+    private List<AppModel.Transaction> FilteredTransactions = new();
+    private string SelectedDateFilter = "New Transactions";
+    private string SelectedTransactionType = "";
+    private string SearchTag = "";
+    private DateTime? StartDate { get; set; }
+    private DateTime? EndDate { get; set; }
+    private string SelectedSortOrder = "Descending"; // Default to Newest First
+    private string UserId = string.Empty;
+    private string ErrorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            UserId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "userId");
+            if (!string.IsNullOrEmpty(UserId))
+            {
+                var allTransactions = await UserService.LoadDataAsync();
+                Transactions = allTransactions.Transactions.Where(t => t.UserId == UserId).ToList();
+                FilteredTransactions = Transactions;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"An error occurred while loading transactions: {ex.Message}";
+        }
+    }
+
+    private void HandleSearch()
+    {
+        FilteredTransactions = Transactions;
+
+        // Filter by Transaction Type
+        if (!string.IsNullOrEmpty(SelectedTransactionType))
+        {
+            FilteredTransactions = FilteredTransactions
+                .Where(t => t.TransactionType.ToString() == SelectedTransactionType)
+                .ToList();
+        }
+
+        // Filter by Tag
+        if (!string.IsNullOrEmpty(SearchTag))
+        {
+            FilteredTransactions = FilteredTransactions
+                .Where(t => t.Label.Contains(SearchTag, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        // Filter by Date Range
+        if (StartDate.HasValue && EndDate.HasValue)
+        {
+            FilteredTransactions = FilteredTransactions
+                .Where(t => t.TransactionDateTime.Date >= StartDate.Value.Date &&
+                            t.TransactionDateTime.Date <= EndDate.Value.Date)
+                .ToList();
+        }
+
+        // Sort Transactions by Date
+        if (SelectedSortOrder == "Ascending")
+        {
+            FilteredTransactions = FilteredTransactions
+                .OrderBy(t => t.TransactionDateTime)
+                .ToList();
+        }
+        else if (SelectedSortOrder == "Descending")
+        {
+            FilteredTransactions = FilteredTransactions
+                .OrderByDescending(t => t.TransactionDateTime)
+                .ToList();
+        }
+    }
+}

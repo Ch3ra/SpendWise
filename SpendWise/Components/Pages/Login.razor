@@ -1,0 +1,145 @@
+﻿@page "/"
+@layout FirstLayout
+@using SpendWise.Components.Layout
+@using SpendWise.Components.Services
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager NavigationManager
+@inject UserService UserServices
+@inject IJSRuntime JSRuntime
+
+<div style="display: flex; justify-content: center; align-items: center;
+            padding: 20px; background-color: #f9f9f9; border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); max-width: 900px;
+            margin: auto; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%;">
+    <div style="flex: 1; text-align: center; max-width: 300px; margin-right: 20px;">
+        <img src="https://cdni.iconscout.com/illustration/premium/thumb/budget-management-illustration-download-in-svg-png-gif-file-formats--expense-managing-accounting-finance-statement-planning-isometric-pack-professionals-illustrations-4040951.png?f=webp" alt="Login Illustration"
+             style="max-width: 100%; height: auto; border-radius: 10px;" />
+    </div>
+    <div style="flex: 2; padding: 20px; max-width: 500px;">
+        <h2 style="margin-bottom: 20px; font-size: 1.8rem; text-align: center;">Login to Your Account</h2>
+
+        @if (isUserAuthenticated)
+        {
+            <p style="text-align: center;">Welcome, @userName!</p>
+            <a class="btn btn-success" href="/dashboard" style="margin-bottom: 15px; display: block; text-align: center;">Go to Dashboard</a>
+            <button class="btn btn-danger" style="width: 100%; padding: 10px;" @onclick="HandleLogout">Logout</button>
+        }
+        else
+        {
+            <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div style="margin-bottom: 15px;">
+                    <label for="email">Email</label>
+                    <InputText id="email" class="form-control" @bind-Value="loginModel.Email"
+                               placeholder="Email" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" />
+                    <ValidationMessage For="@(() => loginModel.Email)" />
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label for="password">Password</label>
+                    <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password"
+                               placeholder="Password" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" />
+                    <ValidationMessage For="@(() => loginModel.Password)" />
+                </div>
+
+                <button type="submit" style="width: 100%; padding: 10px; font-size: 1.2rem; background-color: #007bff; color: #fff; border: none; border-radius: 5px; cursor: pointer;">Login</button>
+            </EditForm>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div style="margin-top: 15px; padding: 10px; border-radius: 5px; font-size: 1rem; background-color: #f8d7da; color: #721c24;">
+                    @errorMessage
+                </div>
+            }
+
+            <p style="text-align: center; margin-top: 15px;">Don't have an account? <a href="/register">Register here</a></p>
+        }
+    </div>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    private bool isUserAuthenticated = false;
+    private string? userName;
+    private string errorMessage = string.Empty;
+
+    private async Task HandleLogin()
+    {
+        try
+        {
+            errorMessage = string.Empty; // Clear previous error messages
+
+            // Load user data
+            var systemData = await UserServices.LoadDataAsync();
+            var users = systemData.Users;
+
+            // Check if email exists
+            var user = users.FirstOrDefault(u =>
+                u.Email?.Equals(loginModel.Email, StringComparison.OrdinalIgnoreCase) == true);
+
+            if (user != null)
+            {
+                // Validate password
+                var isValidPassword = await UserServices.ValidatePasswordAsync(loginModel.Password, user.Password);
+
+                if (isValidPassword)
+                {
+                    isUserAuthenticated = true;
+                    userName = user.UserName;
+
+                    // Save the user email to local storage
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", "userId", user.UserId);
+                    await JSRuntime.InvokeVoidAsync("localStorage.setItem", "userName", user.UserName);
+
+                    // Redirect to the dashboard
+                    NavigationManager.NavigateTo("/dashboard");
+                }
+                else
+                {
+                    errorMessage = "Invalid password.";
+                }
+            }
+            else
+            {
+                errorMessage = "Invalid email or password.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "An error occurred during login. Please try again later.";
+            Console.WriteLine($"Login Error: {ex.Message}");
+        }
+    }
+
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            // Clear local storage and reset user state
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "userEmail");
+            isUserAuthenticated = false;
+            userName = null;
+
+            // Redirect to the home page
+            NavigationManager.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Logout Error: {ex.Message}");
+        }
+    }
+
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email format.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required.")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = string.Empty;
+    }
+}

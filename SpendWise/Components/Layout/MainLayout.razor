@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
 
 <div class="page">
     <div class="sidebar">
@@ -6,8 +8,17 @@
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+        <div class="top-row px-4" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background-color: #007bff; border-bottom: 1px solid #ddd;">
+            @if (!string.IsNullOrEmpty(userName))
+            {
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <img src="https://cdn-icons-png.flaticon.com/512/847/847969.png" alt="User Icon" style="width: 30px; height: 30px; border-radius: 50%;" />
+                        <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: white;">Welcome, @userName!</p>
+                    </div>
+                </div>
+            }
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" @onclick="HandleLogout">Logout</button>
         </div>
 
         <article class="content px-4">
@@ -15,3 +26,28 @@
         </article>
     </main>
 </div>
+
+@code {
+    private string? userName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Fetch username from local storage
+        try
+        {
+            userName = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "userName");
+        }
+        catch
+        {
+            userName = "Guest"; // Default fallback
+        }
+    }
+
+    private void HandleLogout()
+    {
+        // Clear user info and redirect to login or home page
+        JSRuntime.InvokeVoidAsync("localStorage.removeItem", "userName");
+        userName = null;
+        NavigationManager.NavigateTo("/");
+    }
+}

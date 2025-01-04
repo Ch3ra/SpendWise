@@ -1,0 +1,225 @@
+﻿@page "/cash-outflow"
+@using SpendWise.Components.Models
+@using SpendWise.Components.Services
+@inject UserService UserService
+@inject IJSRuntime JSRuntime
+
+<h1 style="text-align: center; font-size: 2.5rem; margin-bottom: 20px; color: #343a40;">Cash Outflow</h1>
+
+<div style="display: flex; justify-content: center; align-items: center; margin-bottom: 40px;">
+    <div style="background: #f8f9fa; padding: 30px; border-radius: 10px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); max-width: 500px; width: 100%;">
+        <EditForm Model="@newCashOutflow" OnValidSubmit="HandleCashOutflow">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="form-group">
+                <label for="amount" style="font-weight: bold;">Amount:</label>
+                <InputNumber id="amount" class="form-control" @bind-Value="newCashOutflow.Amount" style="padding: 10px; font-size: 1rem;" />
+                <ValidationMessage For="@(() => newCashOutflow.Amount)" />
+            </div>
+
+            <div class="form-group">
+                <label for="category" style="font-weight: bold;">Category:</label>
+                <InputText id="category" class="form-control" @bind-Value="newCashOutflow.Label" style="padding: 10px; font-size: 1rem;" />
+                <ValidationMessage For="@(() => newCashOutflow.Label)" />
+            </div>
+
+            <div class="form-group">
+                <label for="notes" style="font-weight: bold;">Notes:</label>
+                <InputText id="notes" class="form-control" @bind-Value="newCashOutflow.Notes" style="padding: 10px; font-size: 1rem;" />
+                <ValidationMessage For="@(() => newCashOutflow.Notes)" />
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; font-size: 1.1rem; margin-top: 20px;">Submit Outflow</button>
+        </EditForm>
+    </div>
+</div>
+
+@if (IsDebtFormVisible)
+{
+    <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 40px;">
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 10px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); max-width: 500px; width: 100%;">
+            <h2 style="text-align: center; font-size: 2rem; margin-bottom: 20px; color: #343a40;">Debt Form</h2>
+            <EditForm Model="@debtTransaction" OnValidSubmit="HandleDebtCreation">
+                <div class="form-group">
+                    <label for="debtAmount" style="font-weight: bold;">Debt Amount:</label>
+                    <InputNumber id="debtAmount" class="form-control" @bind-Value="debtTransaction.Amount" style="padding: 10px; font-size: 1rem;" />
+                    <ValidationMessage For="@(() => debtTransaction.Amount)" />
+                </div>
+
+                <div class="form-group">
+                    <label for="debtSource" style="font-weight: bold;">Source:</label>
+                    <InputText id="debtSource" class="form-control" @bind-Value="debtTransaction.Label" style="padding: 10px; font-size: 1rem;" />
+                    <ValidationMessage For="@(() => debtTransaction.Label)" />
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; font-size: 1.1rem; margin-top: 20px;">Create Debt</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (ErrorMessage != null)
+{
+    <div class="alert alert-danger" style="margin-top: 20px; text-align: center;">@ErrorMessage</div>
+}
+
+@if (SuccessMessage != null)
+{
+    <div class="alert alert-success" style="margin-top: 20px; text-align: center;">@SuccessMessage</div>
+}
+
+<h2 style="text-align: center; font-size: 2rem; margin-bottom: 20px; color: #343a40;">Cash Outflows</h2>
+
+<div style="display: flex; justify-content: center; align-items: center;">
+    @if (cashOutflows.Any())
+    {
+        <table class="table table-hover table-bordered" style="width: 90%; background: #ffffff; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1); border-radius: 10px;">
+            <thead style="background: #ffe6e6; color: #343a40; text-align: center;">
+                <tr>
+                    <th>SN</th>
+                    <th>Amount</th>
+                    <th>Category</th>
+                    <th>Notes</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody style="text-align: center; background: #f8f9fa; color: #343a40;">
+                @for (var serialNumber = 1; serialNumber <= cashOutflows.Count; serialNumber++)
+                {
+                    var outflow = cashOutflows[serialNumber - 1];
+                    <tr>
+                        <td>@serialNumber</td>
+                        <td>@outflow.Amount</td>
+                        <td>@outflow.Label</td>
+                        <td>@outflow.Notes</td>
+                        <td>@outflow.TransactionDateTime.ToLocalTime()</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p style="font-size: 1.2rem; text-align: center; color: #dc3545;">No cash outflows found.</p>
+    }
+</div>
+
+@code {
+    private AppModel.Transaction newCashOutflow = new()
+        {
+            TransactionType = AppModel.TransactionType.Debit,
+            TransactionDateTime = DateTime.UtcNow
+        };
+
+    private AppModel.Transaction debtTransaction = new()
+        {
+            TransactionType = AppModel.TransactionType.Debit,
+            TransactionDateTime = DateTime.UtcNow,
+            IsCleared = false
+        };
+
+    private List<AppModel.Transaction> cashOutflows = new();
+    private string? SuccessMessage;
+    private string? ErrorMessage;
+    private decimal RemainingBalance = 0;
+    private string UserId = string.Empty;
+    private bool IsDebtFormVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            UserId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "userId");
+
+            if (!string.IsNullOrEmpty(UserId))
+            {
+                RemainingBalance = await UserService.GetTotalBalanceAsync(UserId);
+                cashOutflows = await UserService.GetCashOutflowsAsync(UserId);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"An error occurred: {ex.Message}";
+        }
+    }
+
+    private async Task HandleCashOutflow()
+    {
+        var systemData = await UserService.LoadDataAsync();
+        var existingDebt = systemData.Transactions.Any(t => t.UserId == UserId && t.TransactionType == AppModel.TransactionType.Debit && !t.IsCleared);
+
+        if (existingDebt)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "You already have an uncleared debt. Please clear it first.");
+            await JSRuntime.InvokeVoidAsync("window.location.replace", "/dashboard");
+            return;
+        }
+
+        if (newCashOutflow.Amount > RemainingBalance)
+        {
+            // Prompt user to confirm debt creation
+            bool confirmation = await JSRuntime.InvokeAsync<bool>("confirm", "Insufficient Balance. Do you want to take the debt? Press OK!");
+            if (confirmation)
+            {
+                IsDebtFormVisible = true;
+                debtTransaction.Amount = newCashOutflow.Amount - RemainingBalance;
+                debtTransaction.Label = newCashOutflow.Label;
+                return;
+            }
+            else
+            {
+                ErrorMessage = "Transaction canceled.";
+                return;
+            }
+        }
+
+        // Regular cash outflow without debt
+        var success = await UserService.SaveCashOutFlowDataAsync(
+            UserId,
+            UserId,
+            newCashOutflow.Label,
+            newCashOutflow.Notes,
+            newCashOutflow.Amount
+        );
+
+        if (success)
+        {
+            SuccessMessage = "Transaction successful!";
+            RemainingBalance = await UserService.GetTotalBalanceAsync(UserId);
+            cashOutflows = await UserService.GetCashOutflowsAsync(UserId);
+            newCashOutflow = new AppModel.Transaction
+                {
+                    TransactionType = AppModel.TransactionType.Debit,
+                    TransactionDateTime = DateTime.UtcNow
+                };
+        }
+        else
+        {
+            ErrorMessage = "Failed to save the transaction.";
+        }
+    }
+
+    private async Task HandleDebtCreation()
+    {
+        IsDebtFormVisible = false;
+
+        var success = await UserService.CreateDebtForCashOutflowAsync(
+            UserId,
+            UserId,
+            debtTransaction.Amount,
+            debtTransaction.Label,
+            debtTransaction.Notes
+        );
+
+        if (success)
+        {
+            SuccessMessage = "Debt created successfully!";
+            RemainingBalance = await UserService.GetTotalBalanceAsync(UserId);
+        }
+        else
+        {
+            ErrorMessage = "Failed to create debt.";
+        }
+    }
+}

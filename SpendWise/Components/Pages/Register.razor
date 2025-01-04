@@ -1,0 +1,87 @@
+﻿@page "/register"
+@layout FirstLayout
+@using SpendWise.Components.Layout
+@using System.ComponentModel.DataAnnotations
+@using SpendWise.Components.Services
+@inject NavigationManager NavigationManager
+@inject UserService UserService
+
+<div style="display: flex; justify-content: center; align-items: center;
+            padding: 20px; background-color: #f9f9f9; border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); max-width: 900px;
+            margin: auto; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%;">
+    <div style="flex: 1; text-align: center; max-width: 300px; margin-right: 20px;">
+        <img src="https://cdni.iconscout.com/illustration/premium/thumb/man-doing-expense-management-illustration-download-in-svg-png-gif-file-formats--financial-tracking-business-concept-pack-illustrations-7665649.png?f=webp" alt="Registration Illustration"
+             style="max-width: 100%; height: auto; border-radius: 10px;" />
+    </div>
+    <div style="flex: 2; padding: 20px; max-width: 500px;">
+        <h2 style="margin-bottom: 20px; font-size: 1.8rem; text-align: center;">Register your Account</h2>
+        <EditForm Model="@registrationModel" OnValidSubmit="HandleRegistration">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div style="margin-bottom: 15px;">
+                <label for="username">Username</label>
+                <InputText id="username" class="form-control" @bind-Value="registrationModel.UserName"
+                           placeholder="Username" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" />
+                <ValidationMessage For="@(() => registrationModel.UserName)" />
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label for="email">Email</label>
+                <InputText id="email" class="form-control" @bind-Value="registrationModel.Email"
+                           placeholder="Email" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" />
+                <ValidationMessage For="@(() => registrationModel.Email)" />
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label for="password">Password</label>
+                <InputText id="password" type="password" class="form-control" @bind-Value="registrationModel.Password"
+                           placeholder="Password" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" />
+                <ValidationMessage For="@(() => registrationModel.Password)" />
+            </div>
+
+            <button type="submit" style="width: 100%; padding: 10px; font-size: 1.2rem; background-color: #007bff; color: #fff; border: none; border-radius: 5px; cursor: pointer;">Register</button>
+        </EditForm>
+        <p style="text-align: center; margin-top: 15px;">Have an account? <a href="/">Login</a></p>
+    </div>
+</div>
+
+
+@code {
+    private RegistrationModel registrationModel = new RegistrationModel();
+
+    private async Task HandleRegistration()
+    {
+        try
+        {
+            var success = await UserService.RegisterUserAsync(registrationModel.UserName, registrationModel.Email, registrationModel.Password);
+            if (success)
+            {
+                NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                Console.WriteLine("Registration failed. Username or email already exists.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during registration: {ex.Message}");
+        }
+    }
+
+    public class RegistrationModel
+    {
+        [Required(ErrorMessage = "Username is required.")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email format.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required.")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters long.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}
