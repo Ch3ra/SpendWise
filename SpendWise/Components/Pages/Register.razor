@@ -20,6 +20,14 @@
             <DataAnnotationsValidator />
             <ValidationSummary />
 
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 15px;">
+                    @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty" aria-label="Close"></button>
+                </div>
+            }
+
             <div style="margin-bottom: 15px;">
                 <label for="username">Username</label>
                 <InputText id="username" class="form-control" @bind-Value="registrationModel.UserName"
@@ -50,11 +58,13 @@
 
 @code {
     private RegistrationModel registrationModel = new RegistrationModel();
+    private string errorMessage = string.Empty;
 
     private async Task HandleRegistration()
     {
         try
         {
+            errorMessage = string.Empty; // Clear any previous error message
             var success = await UserService.RegisterUserAsync(registrationModel.UserName, registrationModel.Email, registrationModel.Password);
             if (success)
             {
@@ -62,12 +72,15 @@
             }
             else
             {
-                Console.WriteLine("Registration failed. Username or email already exists.");
+                errorMessage = "Registration failed. Username or email already exists. Please try with different credentials.";
+                StateHasChanged(); // Ensure the UI updates
             }
         }
         catch (Exception ex)
         {
+            errorMessage = "An error occurred during registration. Please try again.";
             Console.WriteLine($"Error during registration: {ex.Message}");
+            StateHasChanged();
         }
     }
 

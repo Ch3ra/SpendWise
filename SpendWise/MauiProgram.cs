@@ -17,6 +17,7 @@ namespace SpendWise
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 });
             builder.Services.AddScoped<UserService>();
+            builder.Services.AddScoped<CurrencyState>();
             builder.Services.AddMauiBlazorWebView();
            ;
            

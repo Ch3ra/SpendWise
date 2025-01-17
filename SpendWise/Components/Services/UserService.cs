@@ -10,13 +10,15 @@ namespace SpendWise.Components.Services
     public class UserService
     {
         private readonly string _folderPath;
+        private readonly CurrencyState _currencyState;
         private readonly string _filePath;
 
-        public UserService()
+        public UserService(CurrencyState currencyState)
         {
             string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             _folderPath = Path.Combine(desktopPath, "SpendWiseData");
             _filePath = Path.Combine(_folderPath, "Data.json");
+            _currencyState = currencyState;
         }
 
         public async Task<AppModel> LoadDataAsync()
@@ -137,6 +139,8 @@ namespace SpendWise.Components.Services
         public async Task<bool> SaveCashInFlowDataAsync(string userId, string userName, string label, string notes, decimal amount, AppModel.TransactionType transactionType)
         {
             var systemData = await LoadDataAsync();
+          
+
 
             systemData.Transactions.Add(new AppModel.Transaction
             {
@@ -218,6 +222,54 @@ namespace SpendWise.Components.Services
             return totalInflow - totalOutflow;
         }
 
+        // Inside UserService
+
+        public async Task<decimal> CalculateTotalBalance(string userId)
+        {
+            var systemData = await LoadDataAsync();
+            decimal totalInflow = systemData.Transactions
+                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Credit)
+                .Sum(t => t.Amount);
+
+            decimal totalOutflow = systemData.Transactions
+                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debit)
+                .Sum(t => t.Amount);
+
+            decimal totalDebt = systemData.Transactions
+                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debt && !t.IsCleared)
+                .Sum(t => t.Amount);
+
+            return totalInflow - (totalOutflow + totalDebt);
+        }
+
+        public async Task ClearDebtsIfPossible(string userId)
+        {
+            var systemData = await LoadDataAsync();
+            decimal totalBalance = await CalculateTotalBalance(userId);
+            var debts = systemData.Transactions
+                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debt && !t.IsCleared).ToList();
+
+            foreach (var debt in debts)
+            {
+                if (totalBalance >= debt.Amount)
+                {
+                    debt.IsCleared = true;
+                    totalBalance -= debt.Amount; // Update balance as each debt is cleared
+                }
+            }
+
+            await SaveDataAsync(systemData); // Save the updated state back to storage
+        }
+
+        public async Task<List<AppModel.Transaction>> GetTopTransactionsAsync(string userId, bool highest, int count = 5)
+        {
+            var systemData = await LoadDataAsync();
+            return systemData.Transactions
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => highest ? t.Amount : -t.Amount)
+                .Take(count)
+                .ToList();
+        }
 
 
 
@@ -226,7 +278,7 @@ namespace SpendWise.Components.Services
         {
             var systemData = await LoadDataAsync();
             return systemData.Transactions
-                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debit)
+                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debt)
                 .Sum(t => t.Amount);
         }
 
@@ -237,28 +289,11 @@ namespace SpendWise.Components.Services
 
             // Find the debt transaction
             var debtTransaction = systemData.Transactions.FirstOrDefault(t =>
-                t.TransactionId == transactionId && t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debit && !t.IsCleared);
+                t.TransactionId == transactionId && t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debt && !t.IsCleared);
 
             if (debtTransaction == null)
             {
                 Console.WriteLine("Debt not found or already cleared.");
-                return false;
-            }
-
-            // Calculate available balance
-            var totalInflow = systemData.Transactions
-                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Credit)
-                .Sum(t => t.Amount);
-
-            var totalOutflow = systemData.Transactions
-                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debit && t.IsCleared)
-                .Sum(t => t.Amount);
-
-            var availableBalance = totalInflow - totalOutflow;
-
-            if (availableBalance < debtTransaction.Amount)
-            {
-                Console.WriteLine("Insufficient balance to clear the debt.");
                 return false;
             }
 
@@ -269,16 +304,26 @@ namespace SpendWise.Components.Services
             return true;
         }
 
+
         public async Task<decimal> GetRemainingDebtAsync(string userId)
         {
             var systemData = await LoadDataAsync();
             return systemData.Transactions
-                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debit && !t.IsCleared)
+                .Where(t => t.UserId == userId && t.TransactionType == AppModel.TransactionType.Debt && !t.IsCleared)
                 .Sum(t => t.Amount);
         }
         public async Task<bool> CreateDebtForCashOutflowAsync(string userId, string userName, decimal debtAmount, string category, string notes)
         {
             var systemData = await LoadDataAsync();
+
+            // Check if there are any outstanding debts for the user
+            var hasUnpaidDebt = systemData.Transactions.Any(t => t.UserId == userId && t.TransactionType == TransactionType.Debt && !t.IsCleared);
+
+            if (hasUnpaidDebt)
+            {
+                Console.WriteLine("Cannot create new debt until existing debts are cleared.");
+                return false; // Prevent creating new debt if there are unpaid debts
+            }
 
             try
             {
@@ -288,10 +333,10 @@ namespace SpendWise.Components.Services
                     Amount = debtAmount,
                     Label = category,
                     Notes = notes,
-                    TransactionType = TransactionType.Debit,
+                    TransactionType = TransactionType.Debt,
                     TransactionDateTime = DateTime.UtcNow,
                     IsCleared = false,
-                    DueDate = DateTime.UtcNow.AddMonths(1),
+                    DueDate = DateTime.UtcNow.AddMonths(1), // Optional: set a due date for repayment
                     UserId = userId,
                     UserName = userName
                 });
@@ -305,6 +350,7 @@ namespace SpendWise.Components.Services
                 return false;
             }
         }
+
 
         public async Task<List<AppModel.Transaction>> GetCashOutflowsAsync(string userId)
         {

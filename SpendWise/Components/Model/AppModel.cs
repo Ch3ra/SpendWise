@@ -49,6 +49,7 @@ namespace SpendWise.Components.Models
         {
             Credit,
             Debit,
+            Debt
         }
     }
 }

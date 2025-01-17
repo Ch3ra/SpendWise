@@ -2,6 +2,7 @@
 @using SpendWise.Components.Models
 @using SpendWise.Components.Services
 @inject UserService UserService
+@inject CurrencyState CurrencyState
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
@@ -21,12 +22,25 @@
 
             <div class="form-group">
                 <label for="tags" style="font-weight: bold;">Tags:</label>
-                <InputText id="tags" class="form-control" @bind-Value="newCashInflow.Label" style="padding: 10px; font-size: 1rem;" />
+                <InputSelect id="tags" class="form-control" @bind-Value="newCashInflow.Label" style="padding: 10px; font-size: 1rem;">
+                    <option value="">Select a tag</option>
+                    <option value="Yearly">Yearly</option>
+                    <option value="Monthly">Monthly</option>
+                    <option value="Food">Food</option>
+                    <option value="Drinks">Drinks</option>
+                    <option value="Clothes">Clothes</option>
+                    <option value="Gadgets">Gadgets</option>
+                    <option value="Miscellaneous">Miscellaneous</option>
+                    <option value="Fuel">Fuel</option>
+                    <option value="Rent">Rent</option>
+                    <option value="EMI">EMI</option>
+                    <option value="Party">Party</option>
+                </InputSelect>
                 <ValidationMessage For="@(() => newCashInflow.Label)" />
             </div>
 
             <div class="form-group">
-                <label for="remarks" style="font-weight: bold;">Remarks:</label>
+                <label for="remarks" style="font-weight: bold;">Notes:</label>
                 <InputText id="remarks" class="form-control" @bind-Value="newCashInflow.Notes" style="padding: 10px; font-size: 1rem;" />
                 <ValidationMessage For="@(() => newCashInflow.Notes)" />
             </div>
@@ -67,7 +81,18 @@
                     var inflow = cashInflows[serialNumber - 1];
                     <tr style="background: #f5f5f5;">
                         <td>@serialNumber</td>
-                        <td>@inflow.Amount</td>
+
+
+                        <td>
+                            @if (CurrencyState?.Currency == "NPR")
+                            {
+                                @Math.Round(CurrencyState.ConvertToNPR(inflow?.Amount ?? 0), 2)
+                            }
+                            else
+                            {
+                                @Math.Round(inflow?.Amount ?? 0, 2)
+                            }
+                        </td>
                         <td>@inflow.Label</td>
                         <td>@inflow.Notes</td>
                         <td>@inflow.TransactionDateTime.ToLocalTime()</td>
@@ -82,8 +107,6 @@
     }
 </div>
 
-
-
 @code {
     private AppModel.Transaction newCashInflow = new AppModel.Transaction
         {
@@ -91,42 +114,43 @@
             TransactionDateTime = DateTime.UtcNow
         };
     private string? SuccessMessage;
+
+    private decimal Amountss = 0;
     private string? ErrorMessage;
     private string UserId = string.Empty;
     private List<AppModel.Transaction> cashInflows = new();
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            UserId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "userId");
+        UserId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "userId");
 
-            if (string.IsNullOrEmpty(UserId))
-            {
-                ErrorMessage = "User not authenticated. Please log in.";
-                NavigationManager.NavigateTo("/");
-                return;
-            }
-
-            cashInflows = await UserService.GetCashInflowsAsync(UserId);
-        }
-        catch (Exception ex)
+        if (string.IsNullOrEmpty(UserId))
         {
-            ErrorMessage = $"An error occurred: {ex.Message}";
-            Console.WriteLine($"Error: {ex.Message}");
+            ErrorMessage = "User not authenticated. Please log in.";
+            NavigationManager.NavigateTo("/");
+            return;
         }
+
+        cashInflows = await UserService.GetCashInflowsAsync(UserId);
     }
 
     private async Task AddCashInflow()
     {
         try
         {
+            Amountss = newCashInflow.Amount;
+            if(CurrencyState.Currency == "NPR")
+            {
+                Amountss = CurrencyState.ConvertToUSD(newCashInflow.Amount);
+            }
+           
+
             var success = await UserService.SaveCashInFlowDataAsync(
-                UserId,
+              UserId,
                 UserId,
                 newCashInflow.Label,
                 newCashInflow.Notes,
-                newCashInflow.Amount,
+               Amountss,
                 AppModel.TransactionType.Credit
             );
 

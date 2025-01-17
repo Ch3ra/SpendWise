@@ -1,10 +1,14 @@
 ﻿@page "/transaction"
+@inject CurrencyState CurrencyState
 @using SpendWise.Components.Models
 @using SpendWise.Components.Services
 @inject UserService UserService
 @inject IJSRuntime JSRuntime
 
-<h1 style="text-align: center; font-size: 2.5rem; margin-bottom: 20px;">Transactions</h1>
+
+
+
+
 
 <!-- Filters Section -->
 <div style="display: flex; justify-content: center; margin-bottom: 20px;">
@@ -20,7 +24,7 @@
 
         <div>
             <label for="transaction-tag" style="display: block; font-weight: bold;">Tag</label>
-            <input id="transaction-tag" type="text" class="form-control" @bind="SearchTag" placeholder="Enter Labels" style="width: 200px;" />
+            <input id="transaction-tag" type="text" class="form-control" @bind="SearchTag" placeholder="Enter Tags" style="width: 200px;" />
         </div>
 
         <div>
@@ -42,12 +46,66 @@
         </div>
 
         <div>
-            <button class="btn btn-primary" @onclick="HandleSearch" style="margin-top: 24px;">Search</button>
+            <button class="btn btn-primary" @onclick="HandleSearch" style="margin-top: 24px;">Filter</button>
         </div>
     </div>
 </div>
 
-<!-- Transactions Table -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <!-- Net Transaction Display (Left Side) -->
+    <div style="background-color: #f7f7f7; padding: 10px 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <p style="font-size: 1.6rem; font-weight: bold; color: #333;">
+            Total Transactions:
+            @if (CurrencyState?.Currency == "NPR")
+            {
+                @CurrencyState.ConvertToNPR(@Math.Round(NetTransaction, 2))
+            }
+            else
+            {
+                @Math.Round(NetTransaction, 2)
+            }
+        </p>
+    </div>
+
+
+    <div style="background-color: #f7f7f7; padding: 10px 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <p style="font-size: 1.6rem; font-weight: bold; color: #333;">Transactions Count: @FilteredTransactionsCount</p> 
+    </div>
+
+    <!-- Download as PDF Button (Right Side) -->
+    <button @onclick="DownloadTransactionsAsPdf" style="background-color: dodgerblue; color: white; width: 200px; padding: 8px; height: 50px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); transition: background-color 0.3s, box-shadow 0.3s;">
+        Download as PDF
+    </button>
+
+   
+</div>
+
+<div>
+    <label for="file-upload" style="display: block; font-weight: bold;">Upload File</label>
+    <input id="file-upload" type="file" class="form-control" style="width: 500px;" />
+    <div>
+        <button class="btn btn-primary" style="margin-top: 24px;">Import</button>
+    </div>
+
+</div>
+
+<div>
+    <label for="search-text" style="display: block; font-weight: bold;">Search</label>
+    <div style="display: flex; gap: 10px;">
+        <input id="search-text"
+               type="text"
+               class="form-control"
+               @bind="SearchText"
+               placeholder="Search..."
+               style="width: 200px;" />
+        <button class="btn btn-primary"
+                @onclick="HandleSearch"
+                style="height: 38px;">
+            Search
+        </button>
+    </div>
+</div>
+<h1 style="text-align: center; font-size: 2.5rem; margin-bottom: 20px;">Transactions</h1>
 <div>
     <table class="table table-striped table-bordered" style="width: 90%; margin: auto;">
         <thead class="table-light">
@@ -65,7 +123,19 @@
                 @foreach (var transaction in FilteredTransactions)
                 {
                     <tr>
-                        <td>@transaction.Amount</td>
+
+
+
+                        <td>
+                            @if (CurrencyState?.Currency == "NPR")
+                            {
+                                @CurrencyState.ConvertToNPR(@Math.Round(transaction?.Amount ?? 0, 2))
+                            }
+                            else
+                            {
+                                @Math.Round(transaction?.Amount ?? 0, 2)
+                            }
+                        </td>
                         <td>@transaction.Label</td>
                         <td>@transaction.Notes</td>
                         <td>@transaction.TransactionType</td>
@@ -84,9 +154,11 @@
 </div>
 
 @code {
+    private string SearchText = "";
+    private static readonly string DesktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+  private static readonly string FolderPath = Path.Combine(DesktopPath, "LocalDB");
     private List<AppModel.Transaction> Transactions = new();
     private List<AppModel.Transaction> FilteredTransactions = new();
-    private string SelectedDateFilter = "New Transactions";
     private string SelectedTransactionType = "";
     private string SearchTag = "";
     private DateTime? StartDate { get; set; }
@@ -94,6 +166,9 @@
     private string SelectedSortOrder = "Descending"; // Default to Newest First
     private string UserId = string.Empty;
     private string ErrorMessage = string.Empty;
+    private decimal NetTransaction => CalculateNetTransaction();
+    public int FilteredTransactionsCount => FilteredTransactions.Count;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -105,6 +180,7 @@
                 var allTransactions = await UserService.LoadDataAsync();
                 Transactions = allTransactions.Transactions.Where(t => t.UserId == UserId).ToList();
                 FilteredTransactions = Transactions;
+                HandleSearch(); // Initial search to set default sort and filters
             }
         }
         catch (Exception ex)
@@ -113,11 +189,18 @@
         }
     }
 
+
+    private decimal CalculateNetTransaction()
+    {
+        var credits = Transactions.Where(t => t.TransactionType == AppModel.TransactionType.Credit).Sum(t => t.Amount);
+        var debits = Transactions.Where(t => t.TransactionType == AppModel.TransactionType.Debit).Sum(t => t.Amount);
+        return credits - debits;
+    }
+
     private void HandleSearch()
     {
         FilteredTransactions = Transactions;
 
-        // Filter by Transaction Type
         if (!string.IsNullOrEmpty(SelectedTransactionType))
         {
             FilteredTransactions = FilteredTransactions
@@ -125,7 +208,6 @@
                 .ToList();
         }
 
-        // Filter by Tag
         if (!string.IsNullOrEmpty(SearchTag))
         {
             FilteredTransactions = FilteredTransactions
@@ -133,7 +215,6 @@
                 .ToList();
         }
 
-        // Filter by Date Range
         if (StartDate.HasValue && EndDate.HasValue)
         {
             FilteredTransactions = FilteredTransactions
@@ -142,18 +223,147 @@
                 .ToList();
         }
 
-        // Sort Transactions by Date
         if (SelectedSortOrder == "Ascending")
         {
             FilteredTransactions = FilteredTransactions
                 .OrderBy(t => t.TransactionDateTime)
                 .ToList();
         }
-        else if (SelectedSortOrder == "Descending")
+        else
         {
             FilteredTransactions = FilteredTransactions
                 .OrderByDescending(t => t.TransactionDateTime)
                 .ToList();
         }
+    }
+    private async Task DownloadTransactionsAsPdf()
+    {
+        if (FilteredTransactions == null || !FilteredTransactions.Any()) return;
+
+        // Generate HTML content
+        var htmlContent = GenerateHtmlForTransactions();
+
+        // Use IronPdf to convert HTML to PDF
+        var renderer = new HtmlToPdf();
+        var pdfDocument = renderer.RenderHtmlAsPdf(htmlContent);
+
+        // Convert PDF to byte array
+        var pdfBytes = pdfDocument.BinaryData;
+
+        // Trigger download in the browser
+        var fileName = "Transactions_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".pdf";
+        var fileStream = new MemoryStream(pdfBytes);
+
+        // Save the PDF and get the file URL
+        var pdfUrl = await SavePdfToServer(fileStream, fileName);
+        await TriggerDownload(pdfUrl, fileName);
+    }
+
+    // Generate HTML content for transactions (same as before)
+    private string GenerateHtmlForTransactions()
+    {
+        var html = @"
+<html>
+<head>
+   <style>
+    body {
+        font-family: 'Arial', sans-serif;
+        background-color: #f4f4f9;
+        color: #333;
+        margin: 0;
+        padding: 0;
+    }
+    h1 {
+        text-align: center;
+        color: dodgerblue; /* Updated color */
+        margin-top: 20px;
+        font-size: 2rem;
+        padding: 10px 0;
+    }
+    table {
+        width: 80%;
+        margin: 20px auto;
+        border-collapse: collapse;
+        background-color: #fff;
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.1);
+    }
+    th, td {
+        padding: 15px; /* Increased padding for better spacing */
+        text-align: left;
+        border: 1px solid #ddd;
+        font-size: 1rem; /* Adjusted font size for better readability */
+    }
+    th {
+        background-color: dodgerblue; /* Updated header background color */
+        color: white;
+        font-size: 1.1rem; /* Slightly larger font size for headers */
+    }
+    td {
+        background-color: #f9f9f9;
+        color: #333; /* Ensured consistent text color */
+    }
+    tr:nth-child(even) td {
+        background-color: #f2f2f2; /* Even row background for better differentiation */
+    }
+    tr:hover td {
+        background-color: #e6f7ff; /* Lighter hover effect for better interactivity */
+        color: #222; /* Darker text on hover for contrast */
+    }
+</style>
+
+</head>
+<body>
+    <h1>Transaction Report</h1>
+    <table>
+        <tr>
+            <th>Date</th>
+            <th>Label</th>
+            <th>Amount</th>
+            <th>Type</th>
+            <th>Notes</th>
+        </tr>";
+
+        foreach (var transaction in FilteredTransactions)
+        {
+            html += $@"
+        <tr>
+            <td>{transaction.TransactionDateTime:yyyy-MM-dd}</td>
+            <td>{transaction.Label}</td>
+            <td>{transaction.Amount}</td>
+            <td>{transaction.TransactionType}</td>
+            <td>{transaction.Notes}</td>
+        </tr>";
+        }
+
+        html += @"
+    </table>
+</body>
+</html>";
+
+        return html;
+    }
+
+
+    // Helper method to trigger the download in the browser
+    private async Task TriggerDownload(string fileUrl, string fileName)
+    {
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileUrl, fileName); // Open the file in a new tab or prompt download
+    }
+
+    // Method to save PDF file to the server
+    private async Task<string> SavePdfToServer(MemoryStream fileStream, string fileName)
+    {
+        // Ensure the directory exists
+        if (!Directory.Exists(FolderPath))
+        {
+            Directory.CreateDirectory(FolderPath); // Create the LocalDB folder if it doesn't exist
+        }
+
+        // Save the PDF file from the MemoryStream to the server
+        var filePath = Path.Combine(FolderPath, fileName);
+        await File.WriteAllBytesAsync(filePath, fileStream.ToArray());
+
+        // Return the URL to access the PDF file (relative to wwwroot)
+        return "/LocalDB/" + fileName;
     }
 }

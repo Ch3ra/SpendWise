@@ -4,8 +4,10 @@
 @using SpendWise.Components.Services
 @using System.ComponentModel.DataAnnotations
 @inject NavigationManager NavigationManager
+@inject CurrencyState CurrencyState
 @inject UserService UserServices
 @inject IJSRuntime JSRuntime
+
 
 <div style="display: flex; justify-content: center; align-items: center;
             padding: 20px; background-color: #f9f9f9; border-radius: 10px;
@@ -13,7 +15,7 @@
             margin: auto; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 100%;">
     <div style="flex: 1; text-align: center; max-width: 300px; margin-right: 20px;">
         <img src="https://cdni.iconscout.com/illustration/premium/thumb/budget-management-illustration-download-in-svg-png-gif-file-formats--expense-managing-accounting-finance-statement-planning-isometric-pack-professionals-illustrations-4040951.png?f=webp" alt="Login Illustration"
-             style="max-width: 100%; height: auto; border-radius: 10px;" />
+        style="max-width: 100%; height: auto; border-radius: 10px;" />
     </div>
     <div style="flex: 2; padding: 20px; max-width: 500px;">
         <h2 style="margin-bottom: 20px; font-size: 1.8rem; text-align: center;">Login to Your Account</h2>
@@ -33,15 +35,22 @@
                 <div style="margin-bottom: 15px;">
                     <label for="email">Email</label>
                     <InputText id="email" class="form-control" @bind-Value="loginModel.Email"
-                               placeholder="Email" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" />
+                    placeholder="Email" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" />
                     <ValidationMessage For="@(() => loginModel.Email)" />
                 </div>
 
                 <div style="margin-bottom: 15px;">
                     <label for="password">Password</label>
                     <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password"
-                               placeholder="Password" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" />
+                    placeholder="Password" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" />
                     <ValidationMessage For="@(() => loginModel.Password)" />
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label for="currency">Currency</label>
+                    <select id="currency" class="form-control" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 5px;" @bind=Currency>
+                        <option value="USD">USD </option>
+                        <option value="NPR">NPR</option>
+                    </select>
                 </div>
 
                 <button type="submit" style="width: 100%; padding: 10px; font-size: 1.2rem; background-color: #007bff; color: #fff; border: none; border-radius: 5px; cursor: pointer;">Login</button>
@@ -64,6 +73,8 @@
     private bool isUserAuthenticated = false;
     private string? userName;
     private string errorMessage = string.Empty;
+    private string Currency = "USD";
+
 
     private async Task HandleLogin()
     {
@@ -93,6 +104,7 @@
                     await JSRuntime.InvokeVoidAsync("localStorage.setItem", "userId", user.UserId);
                     await JSRuntime.InvokeVoidAsync("localStorage.setItem", "userName", user.UserName);
 
+                    CurrencyState.SetData(Currency);
                     // Redirect to the dashboard
                     NavigationManager.NavigateTo("/dashboard");
                 }

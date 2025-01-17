@@ -2,6 +2,7 @@
 @using SpendWise.Components.Models
 @using SpendWise.Components.Services
 @inject UserService UserService
+@inject CurrencyState CurrencyState
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
@@ -36,47 +37,35 @@ else
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 0 auto; max-width: 1000px;">
         <div style="background: #f3e6ff; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
             <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Total Balance</h2>
-            <p style="font-size: 2rem; font-weight: bold;">@TotalBalance</p>
+            <p style="font-size: 2rem; font-weight: bold;">USD @Math.Round(@TotalBalance,2)</p>
         </div>
 
         <div style="background: #f0fff0; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
             <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Total Cash Inflow</h2>
-            <p style="font-size: 2rem; font-weight: bold;">@TotalCashInflow</p>
+            <p style="font-size: 2rem; font-weight: bold;">USD @Math.Round(@TotalCashInflow,2)</p>
         </div>
 
         <div style="background: #ffe6e6; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
             <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Total Cash Outflow</h2>
-            <p style="font-size: 2rem; font-weight: bold;">@TotalCashOutflow</p>
+            <p style="font-size: 2rem; font-weight: bold;">USD @Math.Round(@TotalCashOutflow,2)</p>
         </div>
 
         <div style="background: #d6d8db; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
             <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Total Debt</h2>
-            <p style="font-size: 2rem; font-weight: bold;">@TotalDebt</p>
+            <p style="font-size: 2rem; font-weight: bold;">USD @Math.Round(@TotalDebt,2)</p>
         </div>
 
         <div style="background: #d6d8db; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
             <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Remaining Debt</h2>
-            <p style="font-size: 2rem; font-weight: bold;">@RemainingDebt</p>
+            <p style="font-size: 2rem; font-weight: bold;">USD @Math.Round(@RemainingDebt,2)</p>
         </div>
 
         <div style="background: #e6ffe6; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
             <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Cleared Debt</h2>
-            <p style="font-size: 2rem; font-weight: bold;">@ClearedDebt</p>
+            <p style="font-size: 2rem; font-weight: bold;">USD @Math.Round(@ClearedDebt, 2) </p>
         </div>
     </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 0 auto; max-width: 1000px;">
-        <!-- Other existing cards -->
 
-        <div style="background: #fff3cd; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
-            <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Total Transactions</h2>
-            <p style="font-size: 2rem; font-weight: bold;">@TotalTransactionsCount</p>
-        </div>
-
-        <div style="background: #cce5ff; color: #343a40; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);">
-            <h2 style="font-size: 1.5rem; margin-bottom: 10px;">Net Total Transactions</h2>
-            <p style="font-size: 2rem; font-weight: bold;">@NetTotalTransactions</p>
-        </div>
-    </div>
 
 
     <div style="margin-top: 20px;">
@@ -86,8 +75,20 @@ else
                 <h4>Highest Inflow</h4>
                 @if (HighestInflow != null)
                 {
-                    <p>Amount: @HighestInflow.Amount</p>
-                    <p>Category: @HighestInflow.Label</p>
+                    <p> Amount:USD 
+                        <p>
+                            @if (CurrencyState?.Currency == "NPR")
+                            {
+                                 @CurrencyState.ConvertToNPR(@Math.Round(HighestInflow.Amount, 2))
+                            }
+                            else
+                            {
+                                @Math.Round(HighestInflow.Amount, 2)
+                            }
+                        </p>
+                        <p>Category: @HighestInflow.Label</p>
+                    </p>
+
                 }
                 else
                 {
@@ -96,8 +97,19 @@ else
                 <h4>Lowest Inflow</h4>
                 @if (LowestInflow != null)
                 {
-                    <p>Amount: @LowestInflow.Amount</p>
-                    <p>Category: @LowestInflow.Label</p>
+                    <p>Amount:
+                        <p>
+                            @if (CurrencyState?.Currency == "NPR")
+                            {
+                                @CurrencyState.ConvertToNPR(@Math.Round(LowestInflow.Amount, 2))
+                            }
+                            else
+                            {
+                                @Math.Round(LowestInflow.Amount, 2)
+                            }
+                        </p>
+                        <p>Category: @LowestInflow.Label</p>
+                    </p>
                 }
                 else
                 {
@@ -109,8 +121,19 @@ else
                 <h4>Highest Outflow</h4>
                 @if (HighestOutflow != null)
                 {
-                    <p>Amount: @HighestOutflow.Amount</p>
-                    <p>Category: @HighestOutflow.Label</p>
+                    <p> Amount:USD
+                        <p>
+                            @if (CurrencyState?.Currency == "NPR")
+                            {
+                                @CurrencyState.ConvertToNPR(@Math.Round(HighestOutflow.Amount, 2))
+                            }
+                            else
+                            {
+                                @Math.Round(HighestOutflow.Amount, 2)
+                            }
+                        </p>
+                        <p>Category: @HighestOutflow.Label</p>
+                    </p>
                 }
                 else
                 {
@@ -119,8 +142,19 @@ else
                 <h4>Lowest Outflow</h4>
                 @if (LowestOutflow != null)
                 {
-                    <p>Amount: @LowestOutflow.Amount</p>
+                    <p>Amount:USD
+                    <p>
+                            @if (CurrencyState?.Currency == "NPR")
+                            {
+                                @Math.Round(CurrencyState.ConvertToNPR(@LowestOutflow.Amount), 2)
+                            }
+                            else
+                            {
+                                @Math.Round(@LowestOutflow.Amount, 2)
+                            }
+                    </p>
                     <p>Category: @LowestOutflow.Label</p>
+                    </p>
                 }
                 else
                 {
@@ -132,8 +166,19 @@ else
                 <h4>Highest Debt</h4>
                 @if (HighestDebt != null)
                 {
-                    <p>Amount: @HighestDebt.Amount</p>
+                    <p>Amount:USD
+                    <p>
+                            @if (CurrencyState?.Currency == "NPR")
+                            {
+                                @Math.Round(CurrencyState.ConvertToNPR(@HighestDebt.Amount), 2)
+                            }
+                            else
+                            {
+                                @Math.Round(@HighestDebt.Amount, 2)
+                            }
+                    </p>
                     <p>Category: @HighestDebt.Label</p>
+                    </p>
                 }
                 else
                 {
@@ -142,8 +187,19 @@ else
                 <h4>Lowest Debt</h4>
                 @if (LowestDebt != null)
                 {
-                    <p>Amount: @LowestDebt.Amount</p>
+                    <p>Amount:USD
+                    <p>
+                            @if (CurrencyState?.Currency == "NPR")
+                            {
+                                @Math.Round(CurrencyState.ConvertToNPR(@LowestDebt.Amount), 2)
+                            }
+                            else
+                            {
+                                @Math.Round(@LowestDebt.Amount, 2)
+                            }
+                    </p>
                     <p>Category: @LowestDebt.Label</p>
+                    </p>
                 }
                 else
                 {
@@ -153,6 +209,85 @@ else
         </div>
     </div>
 
+    <div style="margin-top: 40px; margin-bottom: 40px;">
+        <h3 style="color: #6c757d; text-align: center; font-size: 1.8rem; margin-bottom: 20px;">Top 5 Transactions</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 0 auto; max-width: 1000px;">
+            <!-- Highest Transactions -->
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                <h4 style="color: #28a745; font-size: 1.6rem; margin-bottom: 20px; text-align: center;">Highest Transactions</h4>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #28a745; color: white;">
+                            <th style="padding: 12px;">Amount (USD)</th>
+                            <th style="padding: 12px;">Type</th>
+                            <th style="padding: 12px;">Date</th>
+                            <th style="padding: 12px;">Category</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var transaction in TopHighestTransactions)
+                        {
+                            <tr style="background-color: white; color: #333;">
+
+                                <td style="padding: 10px; text-align: center;">
+                                    @if (CurrencyState?.Currency == "NPR")
+                                    {
+                                        @Math.Round(CurrencyState.ConvertToNPR( @transaction.Amount), 2)
+                                    }
+                                    else
+                                    {
+                                        @Math.Round(@transaction.Amount, 2)
+                                    }
+                                </td>
+
+                                <td style="padding: 10px; text-align: center;">@transaction.TransactionType</td>
+                                <td style="padding: 10px; text-align: center;">@transaction.TransactionDateTime.ToString("yyyy-MM-dd")</td>
+                                <td style="padding: 10px; text-align: center;">@transaction.Label</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <!-- Lowest Transactions -->
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                <h4 style="color: #dc3545; font-size: 1.6rem; margin-bottom: 20px; text-align: center;">Lowest Transactions</h4>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #dc3545; color: white;">
+                            <th style="padding: 12px;">Amount (USD)</th>
+                            <th style="padding: 12px;">Type</th>
+                            <th style="padding: 12px;">Date</th>
+                            <th style="padding: 12px;">Category</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var transaction in TopLowestTransactions)
+                        {
+                            <tr style="background-color: white; color: #333;">
+                                <td style="padding: 10px; text-align: center;">
+                                    @if (CurrencyState?.Currency == "NPR")
+                                    {
+                                        @Math.Round(CurrencyState.ConvertToNPR(@transaction.Amount), 2)
+                                    }
+                                    else
+                                    {
+                                        @Math.Round(@transaction.Amount, 2)
+                                    }
+                                </td>
+                                <td style="padding: 10px; text-align: center;">@transaction.TransactionType</td>
+                                <td style="padding: 10px; text-align: center;">@transaction.TransactionDateTime.ToString("yyyy-MM-dd")</td>
+                                <td style="padding: 10px; text-align: center;">@transaction.Label</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+
+
     <div>
         <h3 style="margin-top: 20px; color: #6c757d; text-align: center; font-size: 1.8rem;">Pending Debts</h3>
         @if (PendingDebts.Any())
@@ -161,7 +296,7 @@ else
                 <thead>
                     <tr style="background: #343a40; color: #ffffff;">
                         <th style="padding: 10px;">Label</th>
-                        <th style="padding: 10px;">Amount</th>
+                        <th style="padding: 10px;">Amount (USD)</th>
                         <th style="padding: 10px;">Due Date</th>
                         <th style="padding: 10px;">Action</th>
                     </tr>
@@ -171,7 +306,16 @@ else
                     {
                         <tr style="border-bottom: 1px solid #ddd;">
                             <td style="padding: 10px; color: #495057;">@debt.Label</td>
-                            <td style="padding: 10px; color: #495057;">@debt.Amount</td>
+                            <td style="padding: 10px; color: #495057;">
+                                @if (CurrencyState?.Currency == "NPR")
+                                {
+                                    @Math.Round(CurrencyState.ConvertToNPR(@debt.Amount), 2)
+                                }
+                                else
+                                {
+                                    @Math.Round(@debt.Amount, 2)
+                                }
+                            </td>
                             <td style="padding: 10px; color: #495057;">@debt.DueDate?.ToString("yyyy-MM-dd")</td>
                             <td style="padding: 10px; text-align: center;">
                                 <button @onclick="() => ClearDebt(debt.TransactionId)" style="background: #28a745; color: #fff; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer; transition: background 0.3s ease;">
@@ -190,6 +334,8 @@ else
     </div>
 }
 
+
+
 @code {
     private decimal TotalCashInflow = 0;
     private decimal TotalCashOutflow = 0;
@@ -197,8 +343,10 @@ else
     private decimal TotalDebt = 0;
     private decimal RemainingDebt = 0;
     private decimal ClearedDebt = 0;
+    private decimal TotalTransactions = 0;
     private string UserId = string.Empty;
     private string ErrorMessage = string.Empty;
+
     private List<AppModel.Transaction> PendingDebts = new();
     private AppModel.Transaction? HighestInflow;
     private AppModel.Transaction? LowestInflow;
@@ -206,16 +354,22 @@ else
     private AppModel.Transaction? LowestOutflow;
     private AppModel.Transaction? HighestDebt;
     private AppModel.Transaction? LowestDebt;
+
     private DateTime? StartDate;
     private DateTime? EndDate;
+
+    List<AppModel.Transaction> TopHighestTransactions = new();
+    List<AppModel.Transaction> TopLowestTransactions = new();
+
+    private int TotalTransactionsCount = 0;
+    private decimal NetTotalTransactions = 0;
 
     protected override async Task OnInitializedAsync()
     {
         await FetchDashboardData();
+        TopHighestTransactions = await UserService.GetTopTransactionsAsync(UserId, true);
+        TopLowestTransactions = await UserService.GetTopTransactionsAsync(UserId, false);
     }
-
-    private int TotalTransactionsCount = 0;
-    private decimal NetTotalTransactions = 0;
 
     private async Task FetchDashboardData()
     {
@@ -233,29 +387,40 @@ else
                     transactions = transactions.Where(t => t.TransactionDateTime.Date >= StartDate.Value.Date && t.TransactionDateTime.Date <= EndDate.Value.Date);
                 }
 
+                // Check currency and apply conversion accordingly
+                bool isNPR = CurrencyState.Currency == "NPR";
+
                 var inflows = transactions.Where(t => t.TransactionType == AppModel.TransactionType.Credit).ToList();
                 var outflows = transactions.Where(t => t.TransactionType == AppModel.TransactionType.Debit && t.IsCleared).ToList();
-                var debts = transactions.Where(t => t.TransactionType == AppModel.TransactionType.Debit && !t.IsCleared).ToList();
+                var debts = transactions.Where(t => t.TransactionType == AppModel.TransactionType.Debt).ToList();
 
-                TotalCashInflow = inflows.Sum(t => t.Amount);
-                TotalCashOutflow = outflows.Sum(t => t.Amount);
-                TotalDebt = debts.Sum(t => t.Amount);
-
-                // New Calculations
-                TotalTransactionsCount = transactions.Count();
-                NetTotalTransactions = TotalCashInflow + TotalDebt - TotalCashOutflow;
-
-                TotalBalance = TotalCashInflow - TotalCashOutflow;
-                RemainingDebt = debts.Where(t => !t.IsCleared).Sum(t => t.Amount);
+                TotalCashInflow = inflows.Sum(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount);
+                TotalCashOutflow = outflows.Sum(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount);
+                TotalDebt = debts.Sum(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount);
+                RemainingDebt = debts.Where(t => !t.IsCleared).Sum(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount);
                 ClearedDebt = TotalDebt - RemainingDebt;
+                HighestDebt = debts.OrderByDescending(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount).FirstOrDefault();
+                LowestDebt = debts.OrderBy(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount).FirstOrDefault();
+               // LowestDebt = debts.Where((t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount));
+
+                TotalTransactionsCount = transactions.Count();
+                NetTotalTransactions = TotalCashInflow - TotalCashOutflow;
+                TotalBalance = NetTotalTransactions + RemainingDebt;
+
+                if(RemainingDebt == 0)
+
+                {
+                    TotalDebt = 0;
+                    ClearedDebt = 0;
+
+                }
+
                 PendingDebts = debts.Where(t => !t.IsCleared).ToList();
 
-                HighestInflow = inflows.OrderByDescending(t => t.Amount).FirstOrDefault();
-                LowestInflow = inflows.OrderBy(t => t.Amount).FirstOrDefault();
-                HighestOutflow = outflows.OrderByDescending(t => t.Amount).FirstOrDefault();
-                LowestOutflow = outflows.OrderBy(t => t.Amount).FirstOrDefault();
-                HighestDebt = debts.OrderByDescending(t => t.Amount).FirstOrDefault();
-                LowestDebt = debts.OrderBy(t => t.Amount).FirstOrDefault();
+                HighestInflow = inflows.OrderByDescending(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount).FirstOrDefault();
+                LowestInflow = inflows.OrderBy(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount).FirstOrDefault();
+                HighestOutflow = outflows.OrderByDescending(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount).FirstOrDefault();
+                LowestOutflow = outflows.OrderBy(t => isNPR ? CurrencyState.ConvertToNPR(t.Amount) : t.Amount).FirstOrDefault();
             }
             else
             {
